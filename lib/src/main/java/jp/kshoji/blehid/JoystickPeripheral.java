@@ -48,14 +48,24 @@ public class JoystickPeripheral extends HidPeripheral {
      * @param context the applicationContext
      */
     public JoystickPeripheral(final Context context) throws UnsupportedOperationException {
-        super(context.getApplicationContext(), true, false, false);
+        super(context.getApplicationContext(), true, false, false, 10);
     }
 
     @Override
-    byte[] getReportMap() {
+    protected byte[] getReportMap() {
         return REPORT_MAP;
     }
 
+    /**
+     * Move the joystick pointer
+     *
+     * @param dx delta X (-127 .. +127)
+     * @param dy delta Y (-127 .. +127)
+     * @param dz delta Z (-127 .. +127)
+     * @param leftButton true : button down
+     * @param rightButton true : button down
+     * @param middleButton true : button down
+     */
     public void movePointer(int dx, int dy, int dz, final boolean leftButton, final boolean rightButton, final boolean middleButton) {
         if (dx > 127) dx = 127;
         if (dx < -127) dx = -127;
@@ -74,7 +84,6 @@ public class JoystickPeripheral extends HidPeripheral {
             button |= 4;
         }
 
-        // TODO create array pool
         final byte[] report = new byte[5];
         report[0] = (byte) (button & 7);
         report[1] = (byte) dx;
@@ -85,7 +94,7 @@ public class JoystickPeripheral extends HidPeripheral {
     }
 
     @Override
-    void onOutputReport(byte[] outputReport) {
+    protected void onOutputReport(byte[] outputReport) {
         // do nothing
     }
 }

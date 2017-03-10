@@ -6,13 +6,14 @@ import android.util.Log;
 import java.util.Arrays;
 
 /**
- * BLE Keyboard
+ * BLE Keyboard (US layout)
  *
  * @author K.Shoji
  */
 public final class KeyboardPeripheral extends HidPeripheral {
     private static final String TAG = KeyboardPeripheral.class.getSimpleName();
-    
+
+    public static final int MODIFIER_KEY_NONE = 0;
     public static final int MODIFIER_KEY_CTRL = 1;
     public static final int MODIFIER_KEY_SHIFT = 2;
     public static final int MODIFIER_KEY_ALT = 4;
@@ -47,10 +48,10 @@ public final class KeyboardPeripheral extends HidPeripheral {
     /**
      * Modifier code for US Keyboard
      * 
-     * @param aChar
-     * @return
+     * @param aChar String contains one character
+     * @return modifier code
      */
-    public static byte modifier(String aChar) {
+    public static byte modifier(final String aChar) {
         switch (aChar) {
             case "A":
             case "B":
@@ -108,10 +109,10 @@ public final class KeyboardPeripheral extends HidPeripheral {
     /**
      * Key code for US Keyboard
      * 
-     * @param aChar
-     * @return
+     * @param aChar String contains one character
+     * @return keyCode
      */
-    public static byte keyCode(String aChar) {
+    public static byte keyCode(final String aChar) {
         switch (aChar) {
             case "A":
             case "a":
@@ -266,6 +267,7 @@ public final class KeyboardPeripheral extends HidPeripheral {
                 return 0;
         }
     }
+    
     /**
      * Characteristic Data(Report Map)
      */
@@ -305,7 +307,7 @@ public final class KeyboardPeripheral extends HidPeripheral {
     };
 
     @Override
-    byte[] getReportMap() {
+    protected byte[] getReportMap() {
         return REPORT_MAP;
     }
 
@@ -316,28 +318,38 @@ public final class KeyboardPeripheral extends HidPeripheral {
      * @param context the applicationContext
      */
     public KeyboardPeripheral(final Context context) throws UnsupportedOperationException {
-        super(context.getApplicationContext(), true, true, false);
+        super(context.getApplicationContext(), true, true, false, 20);
     }
     
     private static final int KEY_PACKET_MODIFIER_KEY_INDEX = 0;
     private static final int KEY_PACKET_KEY_INDEX = 2;
 
-    public void sendKeys(String text) {
+    /**
+     * Send text to Central device
+     * @param text the text to send
+     */
+    public void sendKeys(final String text) {
         String lastKey = null;
         for (int i = 0; i < text.length(); i++) {
-            String key = text.substring(i, i);
+            final String key = text.substring(i, i + 1);
             final byte[] report = new byte[8];
             report[KEY_PACKET_MODIFIER_KEY_INDEX] = modifier(key);
             report[KEY_PACKET_KEY_INDEX] = keyCode(key);
 
-            addInputReport(report);
             if (key.equals(lastKey)) {
                 sendKeyUp();
             }
+            addInputReport(report);
             lastKey = key;
         }
+        sendKeyUp();
     }
 
+    /**
+     * Send Key Down Event
+     * @param modifier modifier key
+     * @param keyCode key code
+     */
     public void sendKeyDown(final byte modifier, final byte keyCode) {
         final byte[] report = new byte[8];
         report[KEY_PACKET_MODIFIER_KEY_INDEX] = modifier;
@@ -347,12 +359,16 @@ public final class KeyboardPeripheral extends HidPeripheral {
     }
 
     private static final byte[] EMPTY_REPORT = new byte[8];
+
+    /**
+     * Send Key Up Event
+     */
     public void sendKeyUp() {
         addInputReport(EMPTY_REPORT);
     }
 
     @Override
-    void onOutputReport(byte[] outputReport) {
+    protected void onOutputReport(final byte[] outputReport) {
         Log.i(TAG, "onOutputReport data: " + Arrays.toString(outputReport));
     }
 }

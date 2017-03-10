@@ -42,7 +42,7 @@ public final class MousePeripheral extends HidPeripheral {
     };
 
     @Override
-    byte[] getReportMap() {
+    protected byte[] getReportMap() {
         return REPORT_MAP;
     }
 
@@ -53,10 +53,21 @@ public final class MousePeripheral extends HidPeripheral {
      * @param context the applicationContext
      */
     public MousePeripheral(final Context context) throws UnsupportedOperationException {
-        super(context.getApplicationContext(), true, false, false);
+        super(context.getApplicationContext(), true, false, false, 10);
     }
     
     private final byte[] lastSent = new byte[4];
+
+    /**
+     * Move the mouse pointer
+     * 
+     * @param dx delta X (-127 .. +127)
+     * @param dy delta Y (-127 .. +127)
+     * @param wheel wheel (-127 .. +127)
+     * @param leftButton true : button down
+     * @param rightButton true : button down
+     * @param middleButton true : button down
+     */
     public void movePointer(int dx, int dy, int wheel, final boolean leftButton, final boolean rightButton, final boolean middleButton) {
         if (dx > 127) dx = 127;
         if (dx < -127) dx = -127;
@@ -74,7 +85,7 @@ public final class MousePeripheral extends HidPeripheral {
         if (middleButton) {
             button |= 4;
         }
-        
+
         final byte[] report = new byte[4];
         report[0] = (byte) (button & 7);
         report[1] = (byte) dx;
@@ -93,7 +104,7 @@ public final class MousePeripheral extends HidPeripheral {
     }
 
     @Override
-    void onOutputReport(final byte[] outputReport) {
+    protected void onOutputReport(final byte[] outputReport) {
         // do nothing
     }
 }

@@ -20,7 +20,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.os.Build;
+import android.os.Build.VERSION_CODES;
 import android.os.Handler;
 import android.os.ParcelUuid;
 import android.support.annotation.NonNull;
@@ -47,11 +47,9 @@ import jp.kshoji.blehid.util.BleUuidUtils;
  *
  * @author K.Shoji
  */
-@TargetApi(Build.VERSION_CODES.LOLLIPOP)
+@TargetApi(VERSION_CODES.LOLLIPOP)
 public abstract class HidPeripheral {
     private static final String TAG = HidPeripheral.class.getSimpleName();
-    
-    private static final boolean NEED_ENCRYPTION = true;
 
     /**
      * Main items
@@ -129,14 +127,18 @@ public abstract class HidPeripheral {
     private static final UUID CHARACTERISTIC_HID_CONTROL_POINT = BleUuidUtils.fromShortValue(0x2A4C);
     private static final UUID CHARACTERISTIC_REPORT = BleUuidUtils.fromShortValue(0x2A4D);
     private static final UUID CHARACTERISTIC_PROTOCOL_MODE = BleUuidUtils.fromShortValue(0x2A4E);
-    
-    abstract byte[] getReportMap();
 
+    /**
+     * Represents Report Map byte array
+     * @return Report Map data
+     */
+    protected abstract byte[] getReportMap();
+    
     /**
      * HID Input Report
      */
     private final Queue<byte[]> inputReportQueue = new ConcurrentLinkedQueue<>();
-    protected void addInputReport(final byte[] inputReport) {
+    protected final void addInputReport(final byte[] inputReport) {
         if (inputReport != null && inputReport.length > 0) {
             inputReportQueue.offer(inputReport);
         }
@@ -144,7 +146,7 @@ public abstract class HidPeripheral {
 
     /**
      * HID Output Report
-     * 
+     *
      * @param outputReport the report data
      */
     protected abstract void onOutputReport(final byte[] outputReport);
@@ -166,16 +168,21 @@ public abstract class HidPeripheral {
     private final BluetoothLeAdvertiser bluetoothLeAdvertiser;
     private BluetoothGattCharacteristic inputReportCharacteristic;
     @Nullable
-    private final BluetoothGattServer gattServer;
+    private BluetoothGattServer gattServer;
     private final Map<String, BluetoothDevice> bluetoothDevicesMap = new HashMap<>();
-    
+
     /**
      * Constructor<br />
      * Before constructing the instance, check the Bluetooth availability.
      *
-     * @param context the applicationContext
+     * @param context the ApplicationContext
+     * @param needInputReport true: serves 'Input Report' BLE characteristic
+     * @param needOutputReport true: serves 'Output Report' BLE characteristic
+     * @param needFeatureReport true: serves 'Feature Report' BLE characteristic
+     * @param dataSendingRate sending rate in milliseconds
+     * @throws UnsupportedOperationException if starting Bluetooth LE Peripheral failed
      */
-    protected HidPeripheral(final Context context, final boolean needInputReport, final boolean needOutputReport, final boolean needFeatureReport) throws UnsupportedOperationException {
+    protected HidPeripheral(final Context context, final boolean needInputReport, final boolean needOutputReport, final boolean needFeatureReport, final int dataSendingRate) throws UnsupportedOperationException {
         applicationContext = context.getApplicationContext();
         handler = new Handler(applicationContext.getMainLooper());
 
@@ -189,7 +196,7 @@ public abstract class HidPeripheral {
         if (!bluetoothAdapter.isEnabled()) {
             throw new UnsupportedOperationException("Bluetooth is disabled.");
         }
-        
+
         Log.d(TAG, "isMultipleAdvertisementSupported:" + bluetoothAdapter.isMultipleAdvertisementSupported());
         if (!bluetoothAdapter.isMultipleAdvertisementSupported()) {
             throw new UnsupportedOperationException("Bluetooth LE Advertising not supported on this device.");
@@ -203,8 +210,7 @@ public abstract class HidPeripheral {
 
         gattServer = bluetoothManager.openGattServer(applicationContext, gattServerCallback);
         if (gattServer == null) {
-            Log.d(TAG, "gattServer is null, check Bluetooth is ON.");
-            return;
+            throw new UnsupportedOperationException("gattServer is null, check Bluetooth is ON.");
         }
 
         // setup services
@@ -212,7 +218,7 @@ public abstract class HidPeripheral {
         addService(setUpDeviceInformationService());
         addService(setUpBatteryService());
         
-        // send report each 20 msec, if data available
+        // send report each dataSendingRate, if data available
         new Timer().scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
@@ -225,7 +231,9 @@ public abstract class HidPeripheral {
                             final Set<BluetoothDevice> devices = getDevices();
                             for (final BluetoothDevice device : devices) {
                                 try {
-                                    gattServer.notifyCharacteristicChanged(device, inputReportCharacteristic, false);
+                                    if (gattServer != null) {
+                                        gattServer.notifyCharacteristicChanged(device, inputReportCharacteristic, false);
+                                    }
                                 } catch (final Throwable ignored) {
 
                                 }
@@ -234,12 +242,12 @@ public abstract class HidPeripheral {
                     });
                 }
             }
-        }, 0, 20);
+        }, 0, dataSendingRate);
     }
 
     /**
      * Add GATT service to gattServer
-     * 
+     *
      * @param service the service
      */
     private void addService(final BluetoothGattService service) {
@@ -257,7 +265,7 @@ public abstract class HidPeripheral {
 
     /**
      * Setup Device Information Service
-     * 
+     *
      * @return the service
      */
     private static BluetoothGattService setUpDeviceInformationService() {
@@ -272,15 +280,15 @@ public abstract class HidPeripheral {
         }
         {
             final BluetoothGattCharacteristic characteristic = new BluetoothGattCharacteristic(CHARACTERISTIC_SERIAL_NUMBER, BluetoothGattCharacteristic.PROPERTY_READ, BluetoothGattCharacteristic.PERMISSION_READ);
-            while (!service.addCharacteristic(characteristic));
+            while (!service.addCharacteristic(characteristic)) ;
         }
-        
+
         return service;
     }
 
     /**
      * Setup Battery Service
-     * 
+     *
      * @return the service
      */
     private static BluetoothGattService setUpBatteryService() {
@@ -305,15 +313,15 @@ public abstract class HidPeripheral {
 
     /**
      * Setup HID Service
-     * 
-     * @param isNeedInputReport
-     * @param isNeedOutputReport
-     * @param isNeedFeatureReport
+     *
+     * @param isNeedInputReport true: serves 'Input Report' BLE characteristic
+     * @param isNeedOutputReport true: serves 'Output Report' BLE characteristic
+     * @param isNeedFeatureReport true: serves 'Feature Report' BLE characteristic
      * @return the service
      */
     private BluetoothGattService setUpHidService(final boolean isNeedInputReport, final boolean isNeedOutputReport, final boolean isNeedFeatureReport) {
         final BluetoothGattService service = new BluetoothGattService(SERVICE_BLE_HID, BluetoothGattService.SERVICE_TYPE_PRIMARY);
-        
+
         // HID Information
         {
             final BluetoothGattCharacteristic characteristic = new BluetoothGattCharacteristic(
@@ -323,13 +331,13 @@ public abstract class HidPeripheral {
 
             while (!service.addCharacteristic(characteristic));
         }
-        
+
         // Report Map
         {
             final BluetoothGattCharacteristic characteristic = new BluetoothGattCharacteristic(
                     CHARACTERISTIC_REPORT_MAP,
                     BluetoothGattCharacteristic.PROPERTY_READ,
-                    NEED_ENCRYPTION ? BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED : BluetoothGattCharacteristic.PERMISSION_READ);
+                    BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED);
 
             while (!service.addCharacteristic(characteristic));
         }
@@ -339,8 +347,7 @@ public abstract class HidPeripheral {
             final BluetoothGattCharacteristic characteristic = new BluetoothGattCharacteristic(
                     CHARACTERISTIC_PROTOCOL_MODE,
                     BluetoothGattCharacteristic.PROPERTY_READ | BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE,
-                    NEED_ENCRYPTION ? BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED | BluetoothGattCharacteristic.PERMISSION_WRITE_ENCRYPTED : BluetoothGattCharacteristic.PERMISSION_READ | BluetoothGattCharacteristic.PERMISSION_WRITE
-            );
+                    BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED | BluetoothGattCharacteristic.PERMISSION_WRITE_ENCRYPTED);
             characteristic.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE);
 
             while(!service.addCharacteristic(characteristic));
@@ -362,20 +369,17 @@ public abstract class HidPeripheral {
             final BluetoothGattCharacteristic characteristic = new BluetoothGattCharacteristic(
                     CHARACTERISTIC_REPORT,
                     BluetoothGattCharacteristic.PROPERTY_NOTIFY | BluetoothGattCharacteristic.PROPERTY_READ | BluetoothGattCharacteristic.PROPERTY_WRITE,
-                    NEED_ENCRYPTION ?
-                            BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED | BluetoothGattCharacteristic.PERMISSION_WRITE_ENCRYPTED : BluetoothGattCharacteristic.PERMISSION_READ | BluetoothGattCharacteristic.PERMISSION_WRITE);
+                    BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED | BluetoothGattCharacteristic.PERMISSION_WRITE_ENCRYPTED);
 
             final BluetoothGattDescriptor clientCharacteristicConfigurationDescriptor = new BluetoothGattDescriptor(
                     DESCRIPTOR_CLIENT_CHARACTERISTIC_CONFIGURATION,
-                    NEED_ENCRYPTION ?
-                            BluetoothGattDescriptor.PERMISSION_READ_ENCRYPTED | BluetoothGattDescriptor.PERMISSION_WRITE_ENCRYPTED : BluetoothGattDescriptor.PERMISSION_READ | BluetoothGattDescriptor.PERMISSION_WRITE);
+                    BluetoothGattDescriptor.PERMISSION_READ_ENCRYPTED | BluetoothGattDescriptor.PERMISSION_WRITE_ENCRYPTED); //  | BluetoothGattDescriptor.PERMISSION_WRITE
             clientCharacteristicConfigurationDescriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
             characteristic.addDescriptor(clientCharacteristicConfigurationDescriptor);
 
             final BluetoothGattDescriptor reportReferenceDescriptor = new BluetoothGattDescriptor(
                     DESCRIPTOR_REPORT_REFERENCE,
-                    NEED_ENCRYPTION ?
-                            BluetoothGattDescriptor.PERMISSION_READ_ENCRYPTED | BluetoothGattDescriptor.PERMISSION_WRITE_ENCRYPTED : BluetoothGattDescriptor.PERMISSION_READ | BluetoothGattDescriptor.PERMISSION_WRITE);
+                    BluetoothGattDescriptor.PERMISSION_READ_ENCRYPTED | BluetoothGattDescriptor.PERMISSION_WRITE_ENCRYPTED);
             characteristic.addDescriptor(reportReferenceDescriptor);
 
             while (!service.addCharacteristic(characteristic));
@@ -387,14 +391,12 @@ public abstract class HidPeripheral {
             final BluetoothGattCharacteristic characteristic = new BluetoothGattCharacteristic(
                     CHARACTERISTIC_REPORT,
                     BluetoothGattCharacteristic.PROPERTY_READ | BluetoothGattCharacteristic.PROPERTY_WRITE | BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE,
-                    NEED_ENCRYPTION ?
-                            BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED | BluetoothGattCharacteristic.PERMISSION_WRITE_ENCRYPTED : BluetoothGattCharacteristic.PERMISSION_READ | BluetoothGattCharacteristic.PERMISSION_WRITE);
+                    BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED | BluetoothGattCharacteristic.PERMISSION_WRITE_ENCRYPTED);
             characteristic.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE);
 
             final BluetoothGattDescriptor descriptor = new BluetoothGattDescriptor(
                     DESCRIPTOR_REPORT_REFERENCE,
-                    NEED_ENCRYPTION ?
-                            BluetoothGattDescriptor.PERMISSION_READ_ENCRYPTED | BluetoothGattDescriptor.PERMISSION_WRITE_ENCRYPTED : BluetoothGattDescriptor.PERMISSION_READ | BluetoothGattDescriptor.PERMISSION_WRITE);
+                    BluetoothGattDescriptor.PERMISSION_READ_ENCRYPTED | BluetoothGattDescriptor.PERMISSION_WRITE_ENCRYPTED);
             characteristic.addDescriptor(descriptor);
 
             while (!service.addCharacteristic(characteristic));
@@ -405,18 +407,16 @@ public abstract class HidPeripheral {
             final BluetoothGattCharacteristic characteristic = new BluetoothGattCharacteristic(
                     CHARACTERISTIC_REPORT,
                     BluetoothGattCharacteristic.PROPERTY_READ | BluetoothGattCharacteristic.PROPERTY_WRITE,
-                    NEED_ENCRYPTION ?
-                            BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED | BluetoothGattCharacteristic.PERMISSION_WRITE_ENCRYPTED : BluetoothGattCharacteristic.PERMISSION_READ | BluetoothGattCharacteristic.PERMISSION_WRITE);
+                    BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED | BluetoothGattCharacteristic.PERMISSION_WRITE_ENCRYPTED);
 
             final BluetoothGattDescriptor descriptor = new BluetoothGattDescriptor(
                     DESCRIPTOR_REPORT_REFERENCE,
-                    NEED_ENCRYPTION ?
-                            BluetoothGattDescriptor.PERMISSION_READ_ENCRYPTED | BluetoothGattDescriptor.PERMISSION_WRITE_ENCRYPTED : BluetoothGattDescriptor.PERMISSION_READ | BluetoothGattDescriptor.PERMISSION_WRITE);
+                    BluetoothGattDescriptor.PERMISSION_READ_ENCRYPTED | BluetoothGattDescriptor.PERMISSION_WRITE_ENCRYPTED);
             characteristic.addDescriptor(descriptor);
 
             while (!service.addCharacteristic(characteristic));
         }
-        
+
         return service;
     }
 
@@ -434,7 +434,7 @@ public abstract class HidPeripheral {
                         .setTimeout(0)
                         .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY)
                         .build();
-        
+
                 // set up advertising data
                 final AdvertiseData advertiseData = new Builder()
                         .setIncludeTxPowerLevel(false)
@@ -443,14 +443,14 @@ public abstract class HidPeripheral {
                         .addServiceUuid(ParcelUuid.fromString(SERVICE_BLE_HID.toString()))
                         .addServiceUuid(ParcelUuid.fromString(SERVICE_BATTERY.toString()))
                         .build();
-                
+
                 // set up scan result
                 final AdvertiseData scanResult = new Builder()
                         .addServiceUuid(ParcelUuid.fromString(SERVICE_DEVICE_INFORMATION.toString()))
                         .addServiceUuid(ParcelUuid.fromString(SERVICE_BLE_HID.toString()))
                         .addServiceUuid(ParcelUuid.fromString(SERVICE_BATTERY.toString()))
                         .build();
-                
+
                 Log.d(TAG, "advertiseData: " + advertiseData + ", scanResult: " + scanResult);
                 bluetoothLeAdvertiser.startAdvertising(advertiseSettings, advertiseData, scanResult, advertiseCallback);
             }
@@ -470,7 +470,15 @@ public abstract class HidPeripheral {
                     // BT Adapter is not turned ON
                 }
                 try {
-                    gattServer.close();
+                    if (gattServer != null) {
+                        final Set<BluetoothDevice> devices = getDevices();
+                        for (final BluetoothDevice device : devices) {
+                            gattServer.cancelConnection(device);
+                        }
+
+                        gattServer.close();
+                        gattServer = null;
+                    }
                 } catch (final IllegalStateException ignored) {
                     // BT Adapter is not turned ON
                 }
@@ -488,7 +496,7 @@ public abstract class HidPeripheral {
 
     /**
      * Obtains connected Bluetooth devices
-     * 
+     *
      * @return the connected Bluetooth devices
      */
     private Set<BluetoothDevice> getDevices() {
@@ -498,7 +506,7 @@ public abstract class HidPeripheral {
         }
         return Collections.unmodifiableSet(deviceSet);
     }
-    
+
     /**
      * Callback for BLE data transfer
      */
@@ -514,11 +522,6 @@ public abstract class HidPeripheral {
                     // check bond status
                     Log.d(TAG, "BluetoothProfile.STATE_CONNECTED bondState: " + device.getBondState());
                     if (device.getBondState() == BluetoothDevice.BOND_NONE) {
-                        // create bond
-                        device.createBond();
-                        device.setPairingConfirmation(true);
-
-                        final IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
                         applicationContext.registerReceiver(new BroadcastReceiver() {
                             @Override
                             public void onReceive(final Context context, final Intent intent) {
@@ -542,14 +545,19 @@ public abstract class HidPeripheral {
                                                 }
                                             }
                                         });
-                                        synchronized (bluetoothDevicesMap) {
-                                            bluetoothDevicesMap.put(bondedDevice.getAddress(), bondedDevice);
-                                        }
                                         Log.d(TAG, "successfully bonded");
                                     }
                                 }
                             }
-                        }, filter);
+                        }, new IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED));
+
+                        // create bond
+                        try {
+                            device.setPairingConfirmation(true);
+                        } catch (final SecurityException e) {
+                            Log.d(TAG, e.getMessage(), e);
+                        }
+                        device.createBond();
                     } else if (device.getBondState() == BluetoothDevice.BOND_BONDED) {
                         handler.post(new Runnable() {
                             @Override
@@ -568,11 +576,13 @@ public abstract class HidPeripheral {
                 case BluetoothProfile.STATE_DISCONNECTED:
                     final String deviceAddress = device.getAddress();
 
+                    // try reconnect immediately
                     handler.post(new Runnable() {
                         @Override
                         public void run() {
                             if (gattServer != null) {
-                                gattServer.cancelConnection(device);
+                                // gattServer.cancelConnection(device);
+                                gattServer.connect(device, true);
                             }
                         }
                     });
@@ -580,6 +590,10 @@ public abstract class HidPeripheral {
                     synchronized (bluetoothDevicesMap) {
                         bluetoothDevicesMap.remove(deviceAddress);
                     }
+                    break;
+
+                default:
+                    // do nothing
                     break;
             }
         }
@@ -635,7 +649,7 @@ public abstract class HidPeripheral {
         public void onDescriptorReadRequest(final BluetoothDevice device, final int requestId, final int offset, final BluetoothGattDescriptor descriptor) {
             super.onDescriptorReadRequest(device, requestId, offset, descriptor);
             Log.d(TAG, "onDescriptorReadRequest requestId: " + requestId + ", offset: " + offset + ", descriptor: " + descriptor.getUuid());
-            
+
             if (gattServer == null) {
                 return;
             }
@@ -661,7 +675,7 @@ public abstract class HidPeripheral {
                 }
             });
         }
-        
+
         @Override
         public void onCharacteristicWriteRequest(final BluetoothDevice device, final int requestId, final BluetoothGattCharacteristic characteristic, final boolean preparedWrite, final boolean responseNeeded, final int offset, final byte[] value) {
             super.onCharacteristicWriteRequest(device, requestId, characteristic, preparedWrite, responseNeeded, offset, value);
@@ -690,7 +704,9 @@ public abstract class HidPeripheral {
         @Override
         public void onDescriptorWriteRequest(final BluetoothDevice device, final int requestId, final BluetoothGattDescriptor descriptor, final boolean preparedWrite, final boolean responseNeeded, final int offset, final byte[] value) {
             super.onDescriptorWriteRequest(device, requestId, descriptor, preparedWrite, responseNeeded, offset, value);
-            Log.d(TAG, "onDescriptorWriteRequest descriptor: " + descriptor.getUuid() + ", value: " + Arrays.toString(value) + ", responseNeeded: " + responseNeeded);
+            Log.d(TAG, "onDescriptorWriteRequest descriptor: " + descriptor.getUuid() + ", value: " + Arrays.toString(value) + ", responseNeeded: " + responseNeeded + ", preparedWrite: " + preparedWrite);
+
+            descriptor.setValue(value);
 
             if (responseNeeded) {
                 if (BleUuidUtils.matches(DESCRIPTOR_CLIENT_CHARACTERISTIC_CONFIGURATION, descriptor.getUuid())) {
