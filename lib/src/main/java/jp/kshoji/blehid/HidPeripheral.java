@@ -63,6 +63,9 @@ public abstract class HidPeripheral {
     protected static byte COLLECTION(final int size) {
         return (byte) (0xA0 | size);
     }
+    protected static byte FEATURE(final int size) {
+        return (byte) (0xB0 | size);
+    }
     protected static byte END_COLLECTION(final int size) {
         return (byte) (0xC0 | size);
     }
@@ -79,8 +82,23 @@ public abstract class HidPeripheral {
     protected static byte LOGICAL_MAXIMUM(final int size) {
         return (byte) (0x24 | size);
     }
+    protected static byte PHYSICAL_MINIMUM(final int size) {
+        return (byte) (0x34 | size);
+    }
+    protected static byte PHYSICAL_MAXIMUM(final int size) {
+        return (byte) (0x44 | size);
+    }
+    protected static byte UNIT_EXPONENT(final int size) {
+        return (byte) (0x54 | size);
+    }
+    protected static byte UNIT(final int size) {
+        return (byte) (0x64 | size);
+    }
     protected static byte REPORT_SIZE(final int size) {
         return (byte) (0x74 | size);
+    }
+    protected static byte REPORT_ID(final int size) {
+        return (byte) (0x84 | size);
     }
     protected static byte REPORT_COUNT(final int size) {
         return (byte) (0x94 | size);
@@ -99,6 +117,13 @@ public abstract class HidPeripheral {
         return (byte) (0x28 | size);
     }
 
+    protected static byte LSB(final int value) {
+        return (byte) (value & 0xff);
+    }
+    protected static byte MSB(final int value) {
+        return (byte) (value >> 8 & 0xff);
+    }
+    
     /**
      * Device Information Service
      */
@@ -271,15 +296,15 @@ public abstract class HidPeripheral {
     private static BluetoothGattService setUpDeviceInformationService() {
         final BluetoothGattService service = new BluetoothGattService(SERVICE_DEVICE_INFORMATION, BluetoothGattService.SERVICE_TYPE_PRIMARY);
         {
-            final BluetoothGattCharacteristic characteristic = new BluetoothGattCharacteristic(CHARACTERISTIC_MANUFACTURER_NAME, BluetoothGattCharacteristic.PROPERTY_READ, BluetoothGattCharacteristic.PERMISSION_READ);
+            final BluetoothGattCharacteristic characteristic = new BluetoothGattCharacteristic(CHARACTERISTIC_MANUFACTURER_NAME, BluetoothGattCharacteristic.PROPERTY_READ, BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED);
             while (!service.addCharacteristic(characteristic));
         }
         {
-            final BluetoothGattCharacteristic characteristic = new BluetoothGattCharacteristic(CHARACTERISTIC_MODEL_NUMBER, BluetoothGattCharacteristic.PROPERTY_READ, BluetoothGattCharacteristic.PERMISSION_READ);
+            final BluetoothGattCharacteristic characteristic = new BluetoothGattCharacteristic(CHARACTERISTIC_MODEL_NUMBER, BluetoothGattCharacteristic.PROPERTY_READ, BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED);
             while (!service.addCharacteristic(characteristic));
         }
         {
-            final BluetoothGattCharacteristic characteristic = new BluetoothGattCharacteristic(CHARACTERISTIC_SERIAL_NUMBER, BluetoothGattCharacteristic.PROPERTY_READ, BluetoothGattCharacteristic.PERMISSION_READ);
+            final BluetoothGattCharacteristic characteristic = new BluetoothGattCharacteristic(CHARACTERISTIC_SERIAL_NUMBER, BluetoothGattCharacteristic.PROPERTY_READ, BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED);
             while (!service.addCharacteristic(characteristic)) ;
         }
 
@@ -298,7 +323,7 @@ public abstract class HidPeripheral {
         final BluetoothGattCharacteristic characteristic = new BluetoothGattCharacteristic(
                 CHARACTERISTIC_BATTERY_LEVEL,
                 BluetoothGattCharacteristic.PROPERTY_NOTIFY | BluetoothGattCharacteristic.PROPERTY_READ,
-                BluetoothGattCharacteristic.PERMISSION_READ);
+                BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED);
 
         final BluetoothGattDescriptor clientCharacteristicConfigurationDescriptor = new BluetoothGattDescriptor(
                 DESCRIPTOR_CLIENT_CHARACTERISTIC_CONFIGURATION,
@@ -327,7 +352,7 @@ public abstract class HidPeripheral {
             final BluetoothGattCharacteristic characteristic = new BluetoothGattCharacteristic(
                     CHARACTERISTIC_HID_INFORMATION,
                     BluetoothGattCharacteristic.PROPERTY_READ,
-                    BluetoothGattCharacteristic.PERMISSION_READ);
+                    BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED);
 
             while (!service.addCharacteristic(characteristic));
         }
@@ -358,7 +383,7 @@ public abstract class HidPeripheral {
             final BluetoothGattCharacteristic characteristic = new BluetoothGattCharacteristic(
                     CHARACTERISTIC_HID_CONTROL_POINT,
                     BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE,
-                    BluetoothGattCharacteristic.PERMISSION_WRITE);
+                    BluetoothGattCharacteristic.PERMISSION_WRITE_ENCRYPTED);
             characteristic.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE);
 
             while (!service.addCharacteristic(characteristic));
