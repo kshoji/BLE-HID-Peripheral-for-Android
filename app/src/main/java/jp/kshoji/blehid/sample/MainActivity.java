@@ -29,6 +29,12 @@ public class MainActivity extends AppCompatActivity {
                 startActivity(new Intent(getApplicationContext(), MouseActivity.class));
             }
         });
+        findViewById(id.absoluteMouseButton).setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                startActivity(new Intent(getApplicationContext(), AbsoluteMouseActivity.class));
+            }
+        });
         findViewById(id.keyboardButton).setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View view) {

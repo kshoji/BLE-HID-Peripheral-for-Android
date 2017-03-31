@@ -23,6 +23,7 @@
         <activity android:name=".MouseActivity" android:launchMode="singleTask" />
         <activity android:name=".KeyboardActivity" android:launchMode="singleTask" />
         <activity android:name=".JoystickActivity" android:launchMode="singleTask" />
+        <activity android:name=".AbsoluteMouseActivity" android:launchMode="singleTask" />
     </application>
 
 </manifest>

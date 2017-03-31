@@ -11,18 +11,25 @@
     tools:context=".MainActivity">
 
     <Button
-        android:text="Mouse"
+        android:text="Mouse(relative)"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentStart="true"
         android:id="@+id/mouseButton" />
 
     <Button
+        android:text="Mouse(absolute)"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/mouseButton"
+        android:id="@+id/absoluteMouseButton" />
+
+    <Button
         android:text="Keyboard"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:id="@+id/keyboardButton"
-        android:layout_below="@+id/mouseButton"
+        android:layout_below="@+id/absoluteMouseButton"
         android:layout_alignParentStart="true" />
 
     <Button

@@ -11,8 +11,11 @@ Android device will behave as:
 Tested connection:
 
 - Android(Peripheral) <--> Android(Central)
+    - Relative Position Mouse, Keyboard
+- Android(Peripheral) <--> OS X(Central)
+    - Absolute Position Mouse, Relative Position Mouse, Keyboard
 
-Currently, connection with iOS / OS X central is not working..
+Currently, connection with iOS central is not tested yet.
 
 Requirements
 ------------
