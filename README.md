@@ -4,7 +4,7 @@
 This library provides BLE HID Peripheral feature to Android devices. <br/>
 Android device will behave as:
 
-- BLE Mouse
+- BLE Mouse (relative position / absolute position)
 - BLE Keyboard
 - BLE Joystick
 
