@@ -1,0 +1,16 @@
+language: android
+sudo: false
+jdk: oraclejdk8
+os:
+  - linux
+android:
+  components:
+    - build-tools-25.0.2
+    - android-25
+    - extra-android-m2repository
+    - extra-google-m2repository
+before_install:
+  - chmod +x gradlew
+script:
+  - ./gradlew check
+
