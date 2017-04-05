@@ -1,4 +1,6 @@
 # BLE-HID-Peripheral-for-Android
+[![Build Status](https://travis-ci.org/kshoji/BLE-HID-Peripheral-for-Android.svg?branch=master)](https://travis-ci.org/kshoji/BLE-HID-Peripheral-for-Android)
+
 ## BLE HID over GATT Profile for Android
 
 This library provides BLE HID Peripheral feature to Android devices. <br/>
