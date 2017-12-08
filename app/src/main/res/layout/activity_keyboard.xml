@@ -9,30 +9,19 @@
     android:paddingRight="@dimen/activity_horizontal_margin"
     android:paddingTop="@dimen/activity_vertical_margin"
     tools:context=".KeyboardActivity">
-
     <Button
-        android:text="Send"
+        android:id="@+id/typeButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:id="@+id/sendButton"
-        android:layout_below="@+id/editText"
-        android:layout_alignParentStart="true" />
-
+        android:layout_below="@+id/textView2"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="24dp"
+        android:text="TYPE" />
     <TextView
-        android:text="Pair this device with another Bluetooth LE host. Then input text into EditText below, and tap the Send button."
+        android:text="Pair this device with another Bluetooth LE host. Then tap the below button for keyboard."
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentTop="true"
         android:layout_alignParentStart="true"
         android:id="@+id/textView2" />
-
-    <EditText
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:inputType="text"
-        android:text="@string/hello"
-        android:ems="10"
-        android:id="@+id/editText"
-        android:layout_below="@+id/textView2"
-        android:layout_alignParentStart="true" />
 </RelativeLayout>
