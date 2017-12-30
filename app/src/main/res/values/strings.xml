@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">BLE HID</string>
+    <string name="hello">Hello World!</string>
+    <string name="requires_bl_enabled">This app requires bluetooth enabled.</string>
+    <string name="ble_perip_not_supported">Bluetooth LE Peripheral is not supported on this device. The app will exit.</string>
+    <string name="not_supported">Not supported</string>
+    <string name="ok">OK</string>
+    <string name="ble_joystick">BLE Joystick</string>
+    <string name="ble_keyboard">BLE Keyboard</string>
+    <string name="ble_mouse">BLE Mouse</string>
+    <string name="ble_kb_mouse">BLE Keyboard Mouse Combo</string>
+    <string name="ble_hid">BLE HID</string>
+</resources>
