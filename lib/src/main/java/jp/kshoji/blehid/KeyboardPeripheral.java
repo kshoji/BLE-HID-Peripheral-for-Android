@@ -329,18 +329,15 @@ public final class KeyboardPeripheral extends HidPeripheral {
      * @param text the text to send
      */
     public void sendKeys(final String text) {
-        String lastKey = null;
         for (int i = 0; i < text.length(); i++) {
             final String key = text.substring(i, i + 1);
             final byte[] report = new byte[8];
             report[KEY_PACKET_MODIFIER_KEY_INDEX] = modifier(key);
             report[KEY_PACKET_KEY_INDEX] = keyCode(key);
 
-            if (key.equals(lastKey)) {
-                sendKeyUp();
-            }
+            // Always release between keys (PR #10 / issue #1): needed for alternating case like "Aa"
             addInputReport(report);
-            lastKey = key;
+            sendKeyUp();
         }
         sendKeyUp();
     }
