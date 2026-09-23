@@ -1,7 +1,7 @@
 package jp.kshoji.blehid.util;
 
 import android.os.ParcelUuid;
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 
 import java.util.UUID;
 
