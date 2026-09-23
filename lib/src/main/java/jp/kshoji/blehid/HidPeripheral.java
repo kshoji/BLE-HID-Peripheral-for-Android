@@ -23,8 +23,8 @@ import android.content.IntentFilter;
 import android.os.Build.VERSION_CODES;
 import android.os.Handler;
 import android.os.ParcelUuid;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import android.util.Log;
 
 import java.nio.charset.StandardCharsets;
@@ -39,6 +39,8 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.function.Consumer;
 
 import jp.kshoji.blehid.util.BleUuidUtils;
 
@@ -196,6 +198,31 @@ public abstract class HidPeripheral {
     private BluetoothGattServer gattServer;
     private final Map<String, BluetoothDevice> bluetoothDevicesMap = new HashMap<>();
 
+    private Queue<BluetoothGattService> servicesToAdd = new LinkedBlockingQueue<>();
+
+    public class ConnectionState {
+        public BluetoothDevice device;
+        public int status;
+        public int newState;
+
+        public ConnectionState(BluetoothDevice device, int status, int newState) {
+            this.device = device;
+            this.status = status;
+            this.newState = newState;
+        }
+    }
+
+    public void setConnectionStateCallback(Consumer<ConnectionState> connectionStateCallback) {
+        this.connectionStateCallback = connectionStateCallback;
+    }
+
+    private Consumer<ConnectionState> connectionStateCallback = new Consumer<ConnectionState>() {
+        @Override
+        public void accept(ConnectionState connectionState) {
+            // do nothing
+        }
+    };
+
     /**
      * Constructor<br />
      * Before constructing the instance, check the Bluetooth availability.
@@ -239,8 +266,8 @@ public abstract class HidPeripheral {
         }
 
         // setup services
-        addService(setUpHidService(needInputReport, needOutputReport, needFeatureReport));
-        addService(setUpDeviceInformationService());
+        servicesToAdd.add(setUpHidService(needInputReport, needOutputReport, needFeatureReport));
+        servicesToAdd.add(setUpDeviceInformationService());
         addService(setUpBatteryService());
         
         // send report each dataSendingRate, if data available
@@ -285,6 +312,7 @@ public abstract class HidPeripheral {
                 Log.d(TAG, "Adding Service failed", e);
             }
         }
+
         Log.d(TAG, "Service: " + service.getUuid() + " added.");
     }
 
@@ -596,6 +624,8 @@ public abstract class HidPeripheral {
                             bluetoothDevicesMap.put(device.getAddress(), device);
                         }
                     }
+
+                    connectionStateCallback.accept(new ConnectionState(device, status, newState));
                     break;
 
                 case BluetoothProfile.STATE_DISCONNECTED:
@@ -615,6 +645,7 @@ public abstract class HidPeripheral {
                     synchronized (bluetoothDevicesMap) {
                         bluetoothDevicesMap.remove(deviceAddress);
                     }
+                    connectionStateCallback.accept(new ConnectionState(device, status, newState));
                     break;
 
                 default:
@@ -750,6 +781,10 @@ public abstract class HidPeripheral {
 
             if (status != 0) {
                 Log.d(TAG, "onServiceAdded Adding Service failed..");
+            }
+
+            if (servicesToAdd.peek() != null) {
+                addService(servicesToAdd.remove());
             }
         }
     };
